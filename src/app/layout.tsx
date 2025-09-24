@@ -15,12 +15,48 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Heliostar",
-  description: "Enterprise Next.js boilerplate with Tailwind and shadcn/ui",
+  title: {
+    default: "Heliostar",
+    template: "%s | Heliostar",
+  },
+  description: "Heliostar — Health & Safety Application",
+  applicationName: "Heliostar H&S",
+  keywords: [
+    "heliostar",
+    "health",
+    "safety",
+    "H&S",
+    "EHS",
+    "incident",
+    "CAPA",
+    "IAS",
+  ],
+  themeColor: "#78C151",
   icons: {
     icon: "/images/tablogo.png",
     shortcut: "/images/tablogo.png",
     apple: "/images/tablogo.png",
+  },
+  openGraph: {
+    title: "Heliostar",
+    description: "Heliostar — Health & Safety Application",
+    siteName: "Heliostar",
+    images: [
+      {
+        url: "/images/tablogo.png",
+        width: 256,
+        height: 256,
+        alt: "Heliostar",
+      },
+    ],
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary",
+    title: "Heliostar",
+    description: "Heliostar — Health & Safety Application",
+    images: ["/images/tablogo.png"],
   },
 };
 
