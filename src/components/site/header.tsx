@@ -26,6 +26,7 @@ export function SiteHeader() {
           <span className="sr-only">Go to dashboard</span>
         </Link>
 
+
         {/* Profile dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger className="outline-hidden">
