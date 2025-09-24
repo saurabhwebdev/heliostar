@@ -37,7 +37,7 @@ export function SiteHeader() {
           <DropdownMenuContent
             align="end"
             className="w-56"
-            style={{ ["--accent" as any]: "#78C151", ["--accent-foreground" as any]: "#000000" }}
+            style={{ "--accent": "#78C151", "--accent-foreground": "#000000" } as React.CSSProperties}
           >
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col">
