@@ -1,23 +1,27 @@
+"use client";
+
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useI18n } from "@/lib/i18n";
 
 export default function DashboardPage() {
+  const { t } = useI18n();
   const items = [
-    { label: "Report Incident", href: "/dashboard/report-incident", desc: "Create and submit an incident report" },
-    { label: "CAPA", href: "/dashboard/capa", desc: "Track corrective and preventive actions" },
-    { label: "IAS", href: "/dashboard/ias", desc: "Incident analysis and audits" },
-    { label: "Carpeta Supervisor", href: "/dashboard/carpeta-supervisor", desc: "Supervisor resources and files" },
-    { label: "Procedimientos", href: "/dashboard/procedimientos", desc: "Procedures and SOPs" },
-    { label: "Platicas 5 mins", href: "/dashboard/platicas-5-mins", desc: "Short safety talks and guidance" },
-    { label: "Standard Templates", href: "/dashboard/standard-templates", desc: "Standardized templates and forms" },
-    { label: "Analytics", href: "/dashboard/analytics", desc: "KPIs, trends, and dashboards" },
+    { label: t("mod_report_incident"), href: "/dashboard/report-incident", desc: t("tip_mod_report_incident") },
+    { label: t("mod_capa"), href: "/dashboard/capa", desc: t("tip_mod_capa") },
+    { label: t("mod_ias"), href: "/dashboard/ias", desc: t("tip_mod_ias") },
+    { label: t("mod_carpeta"), href: "/dashboard/carpeta-supervisor", desc: t("tip_mod_carpeta") },
+    { label: t("mod_procedimientos"), href: "/dashboard/procedimientos", desc: t("tip_mod_procedimientos") },
+    { label: t("mod_platicas"), href: "/dashboard/platicas-5-mins", desc: t("tip_mod_platicas") },
+    { label: t("mod_templates"), href: "/dashboard/standard-templates", desc: t("tip_mod_templates") },
+    { label: t("mod_analytics"), href: "/dashboard/analytics", desc: t("tip_mod_analytics") },
   ];
 
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Health and Safety Application</h1>
-        <p className="text-sm text-muted-foreground">Quick access to core modules</p>
+        <h1 className="text-2xl font-bold">{t("app_title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("app_subtitle")}</p>
       </div>
 
       <TooltipProvider>

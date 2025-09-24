@@ -26,6 +26,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 interface FormValues {
   site: string;
@@ -67,6 +68,7 @@ const exposureScore: Record<string, number> = {
 };
 
 export default function ReportIncidentPage() {
+  const { t } = useI18n();
   const form = useForm<FormValues>({
     defaultValues: {
       site: "",
@@ -109,99 +111,120 @@ export default function ReportIncidentPage() {
       toast("Please select the date.");
       return;
     }
+
+    // Persist to localStorage so CAPA can prefetch from submitted incidents (demo only)
+    try {
+      if (typeof window !== "undefined") {
+        const list = JSON.parse(localStorage.getItem("incidents") || "[]");
+        const id = `INC-${Date.now()}`;
+        list.push({
+          id,
+          createdAt: new Date().toISOString(),
+          ...values,
+          dateISO: values.date?.toISOString(),
+        });
+        localStorage.setItem("incidents", JSON.stringify(list));
+      }
+    } catch {
+      // ignore storage errors in demo
+    }
+
     toast("Incident report saved (demo)");
-    // In a real app, send values to your API
-    // console.log("payload", values)
     form.reset();
   }
 
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Report Incident</h1>
+        <h1 className="text-2xl font-bold">{t("ri_title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Fill the form to register an incident
+          {t("ri_subtitle")}
         </p>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
-          {/* Row 1: Site, Date, Time */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="site"
-              rules={{ required: "Select a site" }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Site</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select site" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="plant-a">Plant A</SelectItem>
-                        <SelectItem value="plant-b">Plant B</SelectItem>
-                        <SelectItem value="warehouse">Warehouse</SelectItem>
-                        <SelectItem value="office">Office</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {/* Incident details section */}
+          <div>
+            <div className="bg-[#0F2750] text-white rounded-t-md px-3 py-2 text-sm font-semibold">{t("ri_incident_details")}</div>
+            <div className="border rounded-b-md p-3">
+              <div className="grid gap-4 md:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="site"
+                  rules={{ required: "Select a site" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("ri_site")}</FormLabel>
+                      <FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={t("placeholder_select_site")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                        <SelectItem value="plant-a">{t("site_plant_a")}</SelectItem>
+                        <SelectItem value="plant-b">{t("site_plant_b")}</SelectItem>
+                        <SelectItem value="warehouse">{t("site_warehouse")}</SelectItem>
+                        <SelectItem value="office">{t("site_office")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <FormControl>
-                    <Popover open={openDate} onOpenChange={setOpenDate}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="justify-between"
-                        >
-                          {field.value ? field.value.toLocaleDateString() : "Pick a date"}
-                          <CalendarIcon className="size-4 opacity-60" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent align="start" className="p-0">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(d) => {
-                            field.onChange(d);
-                            setOpenDate(false);
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("ri_date")}</FormLabel>
+                      <FormControl>
+                        <Popover open={openDate} onOpenChange={setOpenDate}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="justify-between"
+                            >
+                              {field.value ? field.value.toLocaleDateString() : "Pick a date"}
+                              <CalendarIcon className="size-4 opacity-60" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="p-0">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(d) => {
+                                field.onChange(d);
+                                setOpenDate(false);
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="time"
-              rules={{ required: "Enter time" }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Time</FormLabel>
-                  <FormControl>
-                    <Input type="time" value={field.value} onChange={field.onChange} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="time"
+                  rules={{ required: "Enter time" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("ri_time")}</FormLabel>
+                      <FormControl>
+                        <Input type="time" value={field.value} onChange={field.onChange} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Row 2: Incident Area, Category, Shift */}
@@ -212,18 +235,18 @@ export default function ReportIncidentPage() {
               rules={{ required: "Select incident area" }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Incident Area</FormLabel>
+                  <FormLabel>{t("ri_incident_area")}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select area" />
+                            <SelectValue placeholder={t("placeholder_select_area")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="production">Production</SelectItem>
-                        <SelectItem value="maintenance">Maintenance</SelectItem>
-                        <SelectItem value="warehouse">Warehouse</SelectItem>
-                        <SelectItem value="office">Office</SelectItem>
-                        <SelectItem value="outdoors">Outdoors</SelectItem>
+                        <SelectItem value="production">{t("area_production")}</SelectItem>
+                        <SelectItem value="maintenance">{t("area_maintenance")}</SelectItem>
+                        <SelectItem value="warehouse">{t("area_warehouse")}</SelectItem>
+                        <SelectItem value="office">{t("area_office")}</SelectItem>
+                        <SelectItem value="outdoors">{t("area_outdoors")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -238,18 +261,18 @@ export default function ReportIncidentPage() {
               rules={{ required: "Select incident category" }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Incident Category</FormLabel>
+                  <FormLabel>{t("ri_incident_category")}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select category" />
+                            <SelectValue placeholder={t("placeholder_select_category")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="near-miss">Near Miss</SelectItem>
-                        <SelectItem value="first-aid">First Aid</SelectItem>
-                        <SelectItem value="medical">Medical Treatment</SelectItem>
-                        <SelectItem value="lost-time">Lost Time</SelectItem>
-                        <SelectItem value="property">Property Damage</SelectItem>
+                        <SelectItem value="near-miss">{t("cat_near_miss")}</SelectItem>
+                        <SelectItem value="first-aid">{t("cat_first_aid")}</SelectItem>
+                        <SelectItem value="medical">{t("cat_medical")}</SelectItem>
+                        <SelectItem value="lost-time">{t("cat_lost_time")}</SelectItem>
+                        <SelectItem value="property">{t("cat_property_damage")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -264,16 +287,16 @@ export default function ReportIncidentPage() {
               rules={{ required: "Select shift" }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Shift</FormLabel>
+                  <FormLabel>{t("ri_shift")}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select shift" />
+                            <SelectValue placeholder={t("placeholder_select_shift")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="morning">Morning</SelectItem>
-                        <SelectItem value="afternoon">Afternoon</SelectItem>
-                        <SelectItem value="night">Night</SelectItem>
+                        <SelectItem value="morning">{t("shift_morning")}</SelectItem>
+                        <SelectItem value="afternoon">{t("shift_afternoon")}</SelectItem>
+                        <SelectItem value="night">{t("shift_night")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -291,17 +314,17 @@ export default function ReportIncidentPage() {
               rules={{ required: "Select Severidad" }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Severidad</FormLabel>
+                  <FormLabel>{t("ri_severity")}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select severity" />
+                            <SelectValue placeholder={t("placeholder_select_severity")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Baja</SelectItem>
-                        <SelectItem value="medium">Media</SelectItem>
-                        <SelectItem value="high">Alta</SelectItem>
-                        <SelectItem value="critical">Crítica</SelectItem>
+                        <SelectItem value="low">{t("severity_low")}</SelectItem>
+                        <SelectItem value="medium">{t("severity_medium")}</SelectItem>
+                        <SelectItem value="high">{t("severity_high")}</SelectItem>
+                        <SelectItem value="critical">{t("severity_critical")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -316,16 +339,16 @@ export default function ReportIncidentPage() {
               rules={{ required: "Select Tipo de Personal" }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Personal</FormLabel>
+                  <FormLabel>{t("ri_personnel_type")}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select type" />
+                            <SelectValue placeholder={t("placeholder_select_type")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="empleado">Empleado</SelectItem>
-                        <SelectItem value="contratista">Contratista</SelectItem>
-                        <SelectItem value="visitante">Visitante</SelectItem>
+                        <SelectItem value="empleado">{t("person_employee")}</SelectItem>
+                        <SelectItem value="contratista">{t("person_contractor")}</SelectItem>
+                        <SelectItem value="visitante">{t("person_visitor")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -340,19 +363,19 @@ export default function ReportIncidentPage() {
               rules={{ required: "Select Injury Area" }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Injury Area</FormLabel>
+                  <FormLabel>{t("ri_injury_area")}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select body area" />
+                            <SelectValue placeholder={t("placeholder_select_body_area")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="head">Head</SelectItem>
-                        <SelectItem value="hand">Hand</SelectItem>
-                        <SelectItem value="arm">Arm</SelectItem>
-                        <SelectItem value="leg">Leg</SelectItem>
-                        <SelectItem value="back">Back</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="head">{t("inj_head")}</SelectItem>
+                        <SelectItem value="hand">{t("inj_hand")}</SelectItem>
+                        <SelectItem value="arm">{t("inj_arm")}</SelectItem>
+                        <SelectItem value="leg">{t("inj_leg")}</SelectItem>
+                        <SelectItem value="back">{t("inj_back")}</SelectItem>
+                        <SelectItem value="other">{t("inj_other")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -362,7 +385,7 @@ export default function ReportIncidentPage() {
             />
           </div>
 
-          {/* Row 4: Categoria Operativa & Description */}
+          {/* Row 4: Categoria Operativa */}
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
@@ -370,19 +393,19 @@ export default function ReportIncidentPage() {
               rules={{ required: "Select Categoría Operativa" }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Categoría Operativa</FormLabel>
+                  <FormLabel>{t("ri_operational_category")}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select category" />
+                        <SelectValue placeholder={t("placeholder_select_category")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="mechanical">Mecánica</SelectItem>
-                        <SelectItem value="electrical">Eléctrica</SelectItem>
-                        <SelectItem value="chemical">Química</SelectItem>
-                        <SelectItem value="ergonomic">Ergonómica</SelectItem>
-                        <SelectItem value="safety">Seguridad</SelectItem>
-                        <SelectItem value="environmental">Ambiental</SelectItem>
+                        <SelectItem value="mechanical">{t("op_mechanical")}</SelectItem>
+                        <SelectItem value="electrical">{t("op_electrical")}</SelectItem>
+                        <SelectItem value="chemical">{t("op_chemical")}</SelectItem>
+                        <SelectItem value="ergonomic">{t("op_ergonomic")}</SelectItem>
+                        <SelectItem value="safety">{t("op_safety")}</SelectItem>
+                        <SelectItem value="environmental">{t("op_environmental")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -390,38 +413,43 @@ export default function ReportIncidentPage() {
                 </FormItem>
               )}
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="description"
-              rules={{ required: "Enter description" }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Describe what happened, who was involved, and any immediate actions taken"
-                      value={field.value}
-                      onChange={field.onChange}
-                      rows={6}
-                    />
-                  </FormControl>
-                  <div className="flex justify-end text-xs text-muted-foreground">
-                    {field.value?.length ?? 0}/1000
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {/* Incident description section */}
+          <div>
+            <div className="bg-[#0F2750] text-white rounded-t-md px-3 py-2 text-sm font-semibold">{t("ri_description_section")}</div>
+            <div className="border rounded-b-md p-3">
+              <FormField
+                control={form.control}
+                name="description"
+                rules={{ required: "Enter description" }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Describe what happened, who was involved, and any immediate actions taken"
+                        value={field.value}
+                        onChange={field.onChange}
+                        rows={6}
+                      />
+                    </FormControl>
+                    <div className="flex justify-end text-xs text-muted-foreground">
+                      {field.value?.length ?? 0}/1000
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Button type="submit" className="bg-[#78C151] text-[#0F2750] hover:bg-[#78C151]/90">
-              Submit Report
+              {t("ri_submit")}
             </Button>
-            <Button type="button" variant="outline" onClick={() => form.reset()}>Reset</Button>
+            <Button type="button" variant="outline" onClick={() => form.reset()}>{t("ri_reset")}</Button>
             <Button type="button" variant="outline" onClick={() => setRiskOpen(true)} className="border-[#78C151] text-[#0F2750] hover:bg-[#78C151]/10">
-              Risk Calculator
+              {t("ri_risk_calc")}
             </Button>
           </div>
         </form>
@@ -430,49 +458,49 @@ export default function ReportIncidentPage() {
       <Dialog open={riskOpen} onOpenChange={setRiskOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Risk Calculator</DialogTitle>
-            <DialogDescription>Select the factors to estimate risk.</DialogDescription>
+            <DialogTitle>{t("rc_title")}</DialogTitle>
+            <DialogDescription>{t("rc_desc")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-2">
-              <Label>Likelihood</Label>
+              <Label>{t("rc_likelihood")}</Label>
               <Select value={likelihood} onValueChange={setLikelihood}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unlikely">Unlikely</SelectItem>
-                  <SelectItem value="possible">Possible</SelectItem>
-                  <SelectItem value="likely">Likely</SelectItem>
-                  <SelectItem value="very-likely">Very likely</SelectItem>
-                  <SelectItem value="almost-certain">Almost certain</SelectItem>
+                  <SelectItem value="unlikely">{t("rc_unlikely")}</SelectItem>
+                  <SelectItem value="possible">{t("rc_possible")}</SelectItem>
+                  <SelectItem value="likely">{t("rc_likely")}</SelectItem>
+                  <SelectItem value="very-likely">{t("rc_very_likely")}</SelectItem>
+                  <SelectItem value="almost-certain">{t("rc_almost_certain")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Result</Label>
+              <Label>{t("rc_result")}</Label>
               <Select value={result} onValueChange={setResult}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="first-aid">First Aid</SelectItem>
-                  <SelectItem value="medical-treatment">Medical treatment</SelectItem>
-                  <SelectItem value="serious-lti">Serious (LTI)</SelectItem>
-                  <SelectItem value="disability">Disability</SelectItem>
-                  <SelectItem value="fatality">Fatality</SelectItem>
-                  <SelectItem value="multiple-fatalities">Multiple Fatalities</SelectItem>
+                  <SelectItem value="first-aid">{t("rc_first_aid")}</SelectItem>
+                  <SelectItem value="medical-treatment">{t("rc_medical_treatment")}</SelectItem>
+                  <SelectItem value="serious-lti">{t("rc_serious_lti")}</SelectItem>
+                  <SelectItem value="disability">{t("rc_disability")}</SelectItem>
+                  <SelectItem value="fatality">{t("rc_fatality")}</SelectItem>
+                  <SelectItem value="multiple-fatalities">{t("rc_multiple_fatalities")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Exposure</Label>
+              <Label>{t("rc_exposure")}</Label>
               <Select value={exposure} onValueChange={setExposure}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="hasnt-happened">Hasn’t Happened</SelectItem>
-                  <SelectItem value="rarely">Rarely</SelectItem>
-                  <SelectItem value="sometimes">Sometimes</SelectItem>
-                  <SelectItem value="often">Often</SelectItem>
-                  <SelectItem value="very-often">Very often</SelectItem>
-                  <SelectItem value="constant">Constant</SelectItem>
+                  <SelectItem value="hasnt-happened">{t("rc_hasnt_happened")}</SelectItem>
+                  <SelectItem value="rarely">{t("rc_rarely")}</SelectItem>
+                  <SelectItem value="sometimes">{t("rc_sometimes")}</SelectItem>
+                  <SelectItem value="often">{t("rc_often")}</SelectItem>
+                  <SelectItem value="very-often">{t("rc_very_often")}</SelectItem>
+                  <SelectItem value="constant">{t("rc_constant")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -481,19 +509,19 @@ export default function ReportIncidentPage() {
           <div className="rounded-md border p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Computed Risk Score</p>
+                <p className="text-sm text-muted-foreground">{t("rc_score")}</p>
                 <p className="text-2xl font-bold">{riskScore || "—"}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Recommendation</p>
+                <p className="text-sm text-muted-foreground">{t("rc_recommendation")}</p>
                 <p className="font-medium">{recommendation}</p>
               </div>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setLikelihood(""); setResult(""); setExposure(""); }}>Clear</Button>
-            <Button onClick={() => setRiskOpen(false)} className="bg-[#78C151] text-[#0F2750] hover:bg-[#78C151]/90">Close</Button>
+            <Button variant="outline" onClick={() => { setLikelihood(""); setResult(""); setExposure(""); }}>{t("rc_clear")}</Button>
+            <Button onClick={() => setRiskOpen(false)} className="bg-[#78C151] text-[#0F2750] hover:bg-[#78C151]/90">{t("rc_close")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
