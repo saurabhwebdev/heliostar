@@ -10,7 +10,7 @@ import prisma from "@/lib/db/prisma";
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
-  const userId = (session?.user as any)?.id as string | undefined;
+  const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) {
     return (
       <section>

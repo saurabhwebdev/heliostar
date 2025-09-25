@@ -1,8 +1,9 @@
-import type { NextAuthOptions } from "next-auth";
+import type { NextAuthOptions, User as NextAuthUser, Session } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "@/lib/db/prisma";
 import bcrypt from "bcryptjs";
+import type { JWT } from "next-auth/jwt";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -14,7 +15,7 @@ export const authOptions: NextAuthOptions = {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(creds) {
+      async authorize(creds): Promise<NextAuthUser | null> {
         const username = creds?.username?.toString() ?? "";
         const password = creds?.password?.toString() ?? "";
         if (!username || !password) return null;
@@ -24,14 +25,16 @@ export const authOptions: NextAuthOptions = {
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;
 
-        return {
+        const authUser: NextAuthUser = {
           id: user.id,
           name: user.name ?? user.username,
           email: user.email ?? undefined,
           image: user.image ?? undefined,
-          role: user.role,
-          username: user.username,
-        } as unknown as any;
+        };
+        // Extra fields stored in JWT below
+        (authUser as unknown as { role?: string; username?: string }).role = user.role;
+        (authUser as unknown as { username?: string }).username = user.username;
+        return authUser;
       },
     }),
   ],
@@ -40,19 +43,23 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        (token as any).role = (user as any).role;
-        (token as any).username = (user as any).username;
+      const t = token as JWT & { role?: string; username?: string };
+      const u = user as (NextAuthUser & { role?: string; username?: string }) | undefined;
+      if (u) {
+        t.role = u.role;
+        t.username = u.username;
       }
-      return token;
+      return t;
     },
     async session({ session, token }) {
-      if (session?.user) {
-        (session.user as any).role = (token as any).role;
-        (session.user as any).username = (token as any).username;
-        (session.user as any).id = (token as any).sub ?? (token as any).id;
+      const t = token as JWT & { role?: string; username?: string; sub?: string };
+      const s = session as Session & { user: Session["user"] & { role?: string; username?: string; id?: string } };
+      if (s.user) {
+        s.user.role = t.role;
+        s.user.username = t.username;
+        s.user.id = t.sub ?? (s.user.id as string | undefined);
       }
-      return session;
+      return s;
     },
   },
 };

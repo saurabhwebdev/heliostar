@@ -30,7 +30,6 @@ import { Calendar as CalendarIcon } from "lucide-react";
 
 type Option = { value: string; label: string };
 
-interface IncidentRecord {
   id: string;
   site: string;
   date?: Date;
@@ -64,7 +63,6 @@ interface CAPAFormValues {
   actionTaken: string;
 }
 
-const currencies = [
   { code: "USD", label: "USD ($)" },
   { code: "EUR", label: "EUR (€)" },
   { code: "MXN", label: "MXN ($)" },
@@ -109,8 +107,10 @@ export default function CAPAPage() {
             "currency",
           ].join(","))}`, { credentials: "include" }),
         ]);
-        const incData = await incRes.json();
-        const incidentsList: IncidentDto[] = (incData.items || []).map((it: any) => ({
+        const incData = (await incRes.json()) as { items?: Array<{
+          id: string; site: string; occurredAt: string; incidentArea: string; incidentCategory: string; shift: string; severity: string; personnelType: string; operationalCategory: string; reporter?: { name?: string | null; username?: string | null }
+        }> };
+        const incidentsList: IncidentDto[] = (incData.items || []).map((it) => ({
           id: it.id,
           site: it.site,
           occurredAt: it.occurredAt,
@@ -126,10 +126,11 @@ export default function CAPAPage() {
         setIncidents(incidentsList);
         const userData = await userRes.json();
         setUsers(userData.items || []);
-        const optData = await optRes.json();
+        const optData = (await optRes.json()) as { items?: Record<string, Array<{ value: string; label: string }>> };
         const mapped: Record<string, Option[]> = {};
         for (const key of Object.keys(optData.items || {})) {
-          mapped[key] = (optData.items[key] as any[]).map((x) => ({ value: x.value, label: x.label }));
+          const arr = (optData.items as Record<string, Array<{ value: string; label: string }>>)[key] || [];
+          mapped[key] = arr.map((x) => ({ value: x.value, label: x.label }));
         }
         setOptions(mapped);
       } catch {

@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       where: { type: { in: list }, active: true },
       orderBy: [{ type: "asc" }, { order: "asc" }, { label: "asc" }],
     });
-    const grouped: Record<string, any[]> = {};
+    const grouped: Record<string, unknown[]> = {};
     for (const it of all) {
       if (!grouped[it.type]) grouped[it.type] = [];
       grouped[it.type].push(it);
@@ -43,7 +43,8 @@ export async function GET(request: Request) {
 // POST /api/lookups (admin only)
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user as any).role !== "ADMIN") {
+  type SessionUser = { role?: string };
+  if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const body = await request.json().catch(() => null);

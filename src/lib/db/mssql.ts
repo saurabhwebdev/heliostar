@@ -117,8 +117,8 @@ declare global {
 export async function getMssqlPool(): Promise<ConnectionPool> {
   if (global.__MSSQL_POOL__) return global.__MSSQL_POOL__
   const mod = await importMssql()
-  type SqlLike = { connect?: (cs: string) => Promise<ConnectionPool> } | { default?: { connect?: (cs: string) => Promise<ConnectionPool> } }
-  const getSql = (m: unknown): { connect?: (cs: string) => Promise<ConnectionPool> } => {
+  type SqlLike = { connect?: (cs: unknown) => Promise<ConnectionPool> } | { default?: { connect?: (cs: unknown) => Promise<ConnectionPool> } }
+  const getSql = (m: unknown): { connect?: (cs: unknown) => Promise<ConnectionPool> } => {
     const maybe = m as SqlLike
     // @ts-expect-error runtime check only
     return (maybe?.default ?? maybe) as { connect?: (cs: string) => Promise<ConnectionPool> }
@@ -138,7 +138,7 @@ export async function getMssqlPool(): Promise<ConnectionPool> {
     console.log('[MSSQL] Using tedious config:', { ...logCfg, password: password ? '*****' : undefined })
   }
   
-  const pool = await sql.connect(cfg as any)
+  const pool = await sql.connect(cfg as unknown)
   global.__MSSQL_POOL__ = pool
   return pool
 }

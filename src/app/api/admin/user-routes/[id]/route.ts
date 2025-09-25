@@ -5,7 +5,8 @@ import prisma from "@/lib/db/prisma";
 
 export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user as any).role !== "ADMIN") {
+  type SessionUser = { role?: string };
+  if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const id = params.id;

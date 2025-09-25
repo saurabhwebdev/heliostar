@@ -94,7 +94,7 @@ export default function IASPage() {
     const r = resultScore[result] ?? 0;
     const e = exposureScore[exposure] ?? 0;
     return l && r && e ? l * r * e : 0;
-  }, [likelihood, result, exposure]);
+  }, [likelihood, result, exposure, likelihoodScore, resultScore, exposureScore]);
   const recommendation = useMemo(() => {
     if (!riskScore) return "Select all factors to calculate";
     if (riskScore <= 24) return "Low: Monitor and document";

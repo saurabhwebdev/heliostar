@@ -150,11 +150,12 @@ export default function ReportIncidentPage() {
           "operationalCategory",
         ].join(",");
         const res = await fetch(`/api/lookups?types=${encodeURIComponent(types)}`, { credentials: "include" });
-        const data = await res.json();
+        const data = await res.json() as { items?: Record<string, Array<{ value: string; label: string }>> };
         const grouped = data.items || {};
         const mapped: OptionsByType = {};
         for (const key of Object.keys(grouped)) {
-          mapped[key] = (grouped[key] as any[]).map((it) => ({ value: it.value, label: it.label }));
+          const arr = grouped[key] as Array<{ value: string; label: string }>;
+          mapped[key] = arr.map((it) => ({ value: it.value, label: it.label }));
         }
         setIncidentsOptions(mapped);
       } catch {

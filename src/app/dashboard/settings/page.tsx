@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -131,7 +131,7 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>{t.label}</CardTitle>
-                <CardDescription>Add or remove options for {t.label.toLowerCase()}.</CardDescription>
+          <CardDescription>Add or remove options for {t.label.toLowerCase()}.</CardDescription>
               </CardHeader>
               <CardContent>
                 <AddForm type={t.key} onAdd={addItem} />
@@ -163,7 +163,7 @@ export default function SettingsPage() {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Delete item</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Are you sure you want to delete "{it.label}"?
+                                      Are you sure you want to delete {it.label}?
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -408,7 +408,7 @@ function UserRowTr({ user, onChanged }: { user: UserLite; onChanged: () => Promi
             <AlertDialogHeader>
               <AlertDialogTitle>Delete user</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete user "{user.username}"? This action cannot be undone.
+                Are you sure you want to delete user {user.username}? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

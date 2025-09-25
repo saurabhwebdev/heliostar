@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const body = await request.json().catch(() => null);
+  const body = await request.json().catch(() => null) as null | Record<string, unknown>;
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
   // Expecting a shape from the client similar to the form fields
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
   const created = await prisma.incident.create({
     data: {
-      reporterId: (session.user as any).id,
+      reporterId: (session.user as { id?: string }).id ?? "",
       site: String(site),
       occurredAt,
       incidentArea: String(incidentArea),

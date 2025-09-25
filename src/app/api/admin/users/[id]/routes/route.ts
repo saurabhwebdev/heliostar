@@ -6,7 +6,8 @@ import prisma from "@/lib/db/prisma";
 // GET: list routes; POST: add route for a user (admin only)
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user as any).role !== "ADMIN") {
+  type SessionUser = { role?: string };
+  if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const userId = params.id;
@@ -16,7 +17,8 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user as any).role !== "ADMIN") {
+  type SessionUser = { role?: string };
+  if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const userId = params.id;

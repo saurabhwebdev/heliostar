@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/navigation-menu";
 
 export function SiteHeader() {
-  const router = useRouter();
   const pathname = usePathname();
   const { t, lang, setLang } = useI18n();
   const { data: session } = useSession();
@@ -52,7 +51,7 @@ export function SiteHeader() {
               { href: "/dashboard/report-incident", label: "Report" },
               { href: "/dashboard/capa", label: "CAPA" },
               { href: "/dashboard/ias", label: "IAS" },
-              ((session?.user as any)?.role === "ADMIN") ? { href: "/dashboard/settings", label: "Settings" } : null,
+              (((session?.user as { role?: string })?.role) === "ADMIN") ? { href: "/dashboard/settings", label: "Settings" } : null,
             ].filter(Boolean).map((item) => {
               const it = item as { href: string; label: string };
               const active = pathname?.startsWith(it.href);

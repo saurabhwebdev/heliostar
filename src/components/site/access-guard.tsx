@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescript
 export default function AccessGuard() {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {

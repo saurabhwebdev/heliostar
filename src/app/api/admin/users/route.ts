@@ -7,7 +7,8 @@ import bcrypt from "bcryptjs";
 // GET /api/admin/users (admin only)
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user as any).role !== "ADMIN") {
+  type SessionUser = { role?: string };
+  if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const users = await prisma.user.findMany({
@@ -20,7 +21,8 @@ export async function GET() {
 // POST /api/admin/users (admin only)
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user as any).role !== "ADMIN") {
+  type SessionUser = { role?: string };
+  if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const body = await request.json().catch(() => null) as null | Record<string, unknown>;

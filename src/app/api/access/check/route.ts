@@ -12,10 +12,11 @@ export async function GET(request: Request) {
   const path = String(searchParams.get("path") || "");
   if (!path) return NextResponse.json({ allowed: false }, { status: 400 });
 
-  const role = (session.user as any).role;
-  if (role === "ADMIN") return NextResponse.json({ allowed: true });
+  type SessionUser = { id?: string; role?: string };
+  const u = session.user as SessionUser;
+  if (u.role === "ADMIN") return NextResponse.json({ allowed: true });
 
-  const userId = (session.user as any).id as string;
+  const userId = u.id ?? "";
   const routes = await prisma.routeAccess.findMany({ where: { userId } });
   const allowed = routes.some((r) => (r.isPrefix ? path.startsWith(r.path) : path === r.path));
   return NextResponse.json({ allowed });
