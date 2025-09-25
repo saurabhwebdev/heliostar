@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import prisma from "@/lib/db/prisma";
 import bcrypt from "bcryptjs";
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   type SessionUser = { id?: string; role?: string };
   if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const id = params.id;
+  const { id } = await context.params;
   const body = await request.json().catch(() => null) as null | Record<string, unknown>;
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
@@ -34,12 +34,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const id = params.id;
+  const { id } = await context.params;
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   // Prevent self-delete to avoid odd states during admin session
   if ((session.user as SessionUser).id === id) {

@@ -1,27 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import prisma from "@/lib/db/prisma";
 
 // GET: list routes; POST: add route for a user (admin only)
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   type SessionUser = { role?: string };
   if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const userId = params.id;
+  const { id: userId } = await context.params;
   const items = await prisma.routeAccess.findMany({ where: { userId }, orderBy: { path: "asc" } });
   return NextResponse.json({ items });
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   type SessionUser = { role?: string };
   if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const userId = params.id;
+  const { id: userId } = await context.params;
   const body = await request.json().catch(() => null) as null | { path?: string; isPrefix?: boolean };
   if (!body || !body.path) return NextResponse.json({ error: "Missing path" }, { status: 400 });
   const path = body.path.trim();
