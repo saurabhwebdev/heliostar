@@ -25,8 +25,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar as CalendarIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+
+type Option = { value: string; label: string };
+type OptionsByType = Record<string, Option[]>;
 
 interface FormValues {
   site: string;
@@ -67,6 +70,17 @@ const exposureScore: Record<string, number> = {
   constant: 6,
 };
 
+type IncidentItem = {
+  id: string
+  createdAt: string
+  site: string
+  incidentCategory: string
+  incidentArea: string
+  shift: string
+  occurredAt: string
+  reporter?: { username?: string | null; name?: string | null; email?: string | null } | null
+}
+
 export default function ReportIncidentPage() {
   const { t } = useI18n();
   const form = useForm<FormValues>({
@@ -90,6 +104,9 @@ export default function ReportIncidentPage() {
   const [likelihood, setLikelihood] = useState<string>("");
   const [result, setResult] = useState<string>("");
   const [exposure, setExposure] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+  const [incidents, setIncidents] = useState<IncidentItem[]>([]);
+  const [incidentsOptions, setIncidentsOptions] = useState<OptionsByType>({});
 
   const riskScore = useMemo(() => {
     const l = likelihoodScore[likelihood] ?? 0;
@@ -106,31 +123,79 @@ export default function ReportIncidentPage() {
     return "Critical: Stop work, immediate action and escalation";
   }, [riskScore]);
 
-  function onSubmit(values: FormValues) {
+  async function loadIncidents() {
+    try {
+      const res = await fetch("/api/incidents?limit=10", { credentials: "include" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { items?: IncidentItem[] };
+      setIncidents(data.items ?? []);
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    void loadIncidents();
+    // Load dropdown options
+    (async () => {
+      try {
+        const types = [
+          "site",
+          "incidentArea",
+          "incidentCategory",
+          "shift",
+          "severity",
+          "personnelType",
+          "injuryArea",
+          "operationalCategory",
+        ].join(",");
+        const res = await fetch(`/api/lookups?types=${encodeURIComponent(types)}`, { credentials: "include" });
+        const data = await res.json();
+        const grouped = data.items || {};
+        const mapped: OptionsByType = {};
+        for (const key of Object.keys(grouped)) {
+          mapped[key] = (grouped[key] as any[]).map((it) => ({ value: it.value, label: it.label }));
+        }
+        setIncidentsOptions(mapped);
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
+
+  async function onSubmit(values: FormValues) {
     if (!values.date) {
       toast("Please select the date.");
       return;
     }
-
-    // Persist to localStorage so CAPA can prefetch from submitted incidents (demo only)
+    if (submitting) return;
+    setSubmitting(true);
     try {
-      if (typeof window !== "undefined") {
-        const list = JSON.parse(localStorage.getItem("incidents") || "[]");
-        const id = `INC-${Date.now()}`;
-        list.push({
-          id,
-          createdAt: new Date().toISOString(),
+      const dateISO = values.date?.toISOString();
+      const res = await fetch("/api/incidents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
           ...values,
-          dateISO: values.date?.toISOString(),
-        });
-        localStorage.setItem("incidents", JSON.stringify(list));
+          dateISO,
+          riskScore,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        toast(err?.error || "Failed to save incident");
+        return;
       }
-    } catch {
-      // ignore storage errors in demo
+      toast("Incident report saved");
+      form.reset();
+      setLikelihood(""); setResult(""); setExposure("");
+      await loadIncidents();
+    } catch (e) {
+      toast("Failed to save incident");
+    } finally {
+      setSubmitting(false);
     }
-
-    toast("Incident report saved (demo)");
-    form.reset();
   }
 
   return (
@@ -162,10 +227,9 @@ export default function ReportIncidentPage() {
                             <SelectValue placeholder={t("placeholder_select_site")} />
                           </SelectTrigger>
                           <SelectContent>
-                        <SelectItem value="plant-a">{t("site_plant_a")}</SelectItem>
-                        <SelectItem value="plant-b">{t("site_plant_b")}</SelectItem>
-                        <SelectItem value="warehouse">{t("site_warehouse")}</SelectItem>
-                        <SelectItem value="office">{t("site_office")}</SelectItem>
+                            {(incidentsOptions.site || []).map((o) => (
+                              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </FormControl>
@@ -242,11 +306,9 @@ export default function ReportIncidentPage() {
                             <SelectValue placeholder={t("placeholder_select_area")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="production">{t("area_production")}</SelectItem>
-                        <SelectItem value="maintenance">{t("area_maintenance")}</SelectItem>
-                        <SelectItem value="warehouse">{t("area_warehouse")}</SelectItem>
-                        <SelectItem value="office">{t("area_office")}</SelectItem>
-                        <SelectItem value="outdoors">{t("area_outdoors")}</SelectItem>
+                        {(incidentsOptions.incidentArea || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -268,11 +330,9 @@ export default function ReportIncidentPage() {
                             <SelectValue placeholder={t("placeholder_select_category")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="near-miss">{t("cat_near_miss")}</SelectItem>
-                        <SelectItem value="first-aid">{t("cat_first_aid")}</SelectItem>
-                        <SelectItem value="medical">{t("cat_medical")}</SelectItem>
-                        <SelectItem value="lost-time">{t("cat_lost_time")}</SelectItem>
-                        <SelectItem value="property">{t("cat_property_damage")}</SelectItem>
+                        {(incidentsOptions.incidentCategory || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -294,9 +354,9 @@ export default function ReportIncidentPage() {
                             <SelectValue placeholder={t("placeholder_select_shift")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="morning">{t("shift_morning")}</SelectItem>
-                        <SelectItem value="afternoon">{t("shift_afternoon")}</SelectItem>
-                        <SelectItem value="night">{t("shift_night")}</SelectItem>
+                        {(incidentsOptions.shift || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -321,10 +381,9 @@ export default function ReportIncidentPage() {
                             <SelectValue placeholder={t("placeholder_select_severity")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">{t("severity_low")}</SelectItem>
-                        <SelectItem value="medium">{t("severity_medium")}</SelectItem>
-                        <SelectItem value="high">{t("severity_high")}</SelectItem>
-                        <SelectItem value="critical">{t("severity_critical")}</SelectItem>
+                        {(incidentsOptions.severity || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -346,9 +405,9 @@ export default function ReportIncidentPage() {
                             <SelectValue placeholder={t("placeholder_select_type")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="empleado">{t("person_employee")}</SelectItem>
-                        <SelectItem value="contratista">{t("person_contractor")}</SelectItem>
-                        <SelectItem value="visitante">{t("person_visitor")}</SelectItem>
+                        {(incidentsOptions.personnelType || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -370,12 +429,9 @@ export default function ReportIncidentPage() {
                             <SelectValue placeholder={t("placeholder_select_body_area")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="head">{t("inj_head")}</SelectItem>
-                        <SelectItem value="hand">{t("inj_hand")}</SelectItem>
-                        <SelectItem value="arm">{t("inj_arm")}</SelectItem>
-                        <SelectItem value="leg">{t("inj_leg")}</SelectItem>
-                        <SelectItem value="back">{t("inj_back")}</SelectItem>
-                        <SelectItem value="other">{t("inj_other")}</SelectItem>
+                        {(incidentsOptions.injuryArea || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -400,12 +456,9 @@ export default function ReportIncidentPage() {
                         <SelectValue placeholder={t("placeholder_select_category")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="mechanical">{t("op_mechanical")}</SelectItem>
-                        <SelectItem value="electrical">{t("op_electrical")}</SelectItem>
-                        <SelectItem value="chemical">{t("op_chemical")}</SelectItem>
-                        <SelectItem value="ergonomic">{t("op_ergonomic")}</SelectItem>
-                        <SelectItem value="safety">{t("op_safety")}</SelectItem>
-                        <SelectItem value="environmental">{t("op_environmental")}</SelectItem>
+                        {(incidentsOptions.operationalCategory || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -444,8 +497,8 @@ export default function ReportIncidentPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button type="submit" className="bg-[#78C151] text-[#0F2750] hover:bg-[#78C151]/90">
-              {t("ri_submit")}
+            <Button type="submit" className="bg-[#78C151] text-[#0F2750] hover:bg-[#78C151]/90" disabled={submitting}>
+              {submitting ? "Saving..." : t("ri_submit")}
             </Button>
             <Button type="button" variant="outline" onClick={() => form.reset()}>{t("ri_reset")}</Button>
             <Button type="button" variant="outline" onClick={() => setRiskOpen(true)} className="border-[#78C151] text-[#0F2750] hover:bg-[#78C151]/10">
@@ -454,6 +507,43 @@ export default function ReportIncidentPage() {
           </div>
         </form>
       </Form>
+
+      {/* Recent incidents (from database) */}
+      <div className="rounded-md border overflow-hidden">
+        <div className="bg-muted px-3 py-2 text-sm font-semibold">Recent incidents</div>
+        <div className="p-3">
+          {incidents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No incidents yet.</p>
+          ) : (
+            <div className="relative w-full overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b">
+                  <tr>
+                    <th className="text-left p-2">When</th>
+                    <th className="text-left p-2">Site</th>
+                    <th className="text-left p-2">Category</th>
+                    <th className="text-left p-2">Area</th>
+                    <th className="text-left p-2">Shift</th>
+                    <th className="text-left p-2">Reporter</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {incidents.map((it) => (
+                    <tr key={it.id} className="border-b last:border-0">
+                      <td className="p-2">{new Date(it.occurredAt).toLocaleString()}</td>
+                      <td className="p-2">{it.site}</td>
+                      <td className="p-2">{it.incidentCategory}</td>
+                      <td className="p-2">{it.incidentArea}</td>
+                      <td className="p-2">{it.shift}</td>
+                      <td className="p-2">{it.reporter?.name || it.reporter?.username || ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
 
       <Dialog open={riskOpen} onOpenChange={setRiskOpen}>
         <DialogContent>

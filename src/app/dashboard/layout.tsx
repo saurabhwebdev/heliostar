@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/site/header";
 import { SiteFooter } from "@/components/site/footer";
+import AccessGuard from "@/components/site/access-guard";
 
 export default function DashboardLayout({
   children,
@@ -10,6 +11,7 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
+      <AccessGuard />
       <main className="flex-1">
         <div className="container mx-auto px-4 py-6">{children}</div>
       </main>

@@ -2,8 +2,9 @@
 /* eslint-disable @next/next/no-img-element */
 import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
+import { useSession, signOut } from "next-auth/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,10 +17,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Settings, User } from "lucide-react";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+} from "@/components/ui/navigation-menu";
 
 export function SiteHeader() {
   const router = useRouter();
+  const pathname = usePathname();
   const { t, lang, setLang } = useI18n();
+  const { data: session } = useSession();
+  const user = session?.user as (null | { name?: string | null; email?: string | null; image?: string | null; username?: string | null }) ?? null;
+  const displayName = user?.name || user?.username || "User";
+  const displayEmail = user?.email || "";
+  const initials = (displayName || "U").split(/\s+/).map(s => s[0]).join("").slice(0,2).toUpperCase();
+  const avatarSrc = user?.image || (user?.username ? `https://api.dicebear.com/8.x/micah/svg?seed=${encodeURIComponent(user.username)}` : undefined);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-14 items-center justify-between px-4">
@@ -29,6 +44,33 @@ export function SiteHeader() {
           <span className="sr-only">{t("nav_go_dashboard")}</span>
         </Link>
 
+        {/* Main navigation */}
+        <NavigationMenu className="hidden md:flex">
+          <NavigationMenuList>
+            {[
+              { href: "/dashboard", label: "Dashboard" },
+              { href: "/dashboard/report-incident", label: "Report" },
+              { href: "/dashboard/capa", label: "CAPA" },
+              { href: "/dashboard/ias", label: "IAS" },
+              ((session?.user as any)?.role === "ADMIN") ? { href: "/dashboard/settings", label: "Settings" } : null,
+            ].filter(Boolean).map((item) => {
+              const it = item as { href: string; label: string };
+              const active = pathname?.startsWith(it.href);
+              return (
+                <NavigationMenuItem key={it.href}>
+                  <NavigationMenuLink asChild>
+                    <Link
+                      href={it.href}
+                      className={`px-3 py-2 rounded-md transition-colors text-[#0F2750] hover:text-[#78C151] ${active ? "text-[#78C151]" : ""}`}
+                    >
+                      {it.label}
+                    </Link>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              );
+            })}
+          </NavigationMenuList>
+        </NavigationMenu>
 
         <div className="flex items-center gap-3">
           {/* Language selector */}
@@ -46,8 +88,8 @@ export function SiteHeader() {
           <DropdownMenu>
           <DropdownMenuTrigger className="outline-hidden">
             <Avatar className="ring-2 ring-[#78C151]/50 ring-offset-2 ring-offset-background hover:ring-[#78C151] transition-colors">
-              <AvatarImage src="https://api.dicebear.com/8.x/micah/svg?seed=Saurabh%20Thakur" alt="Profile" />
-              <AvatarFallback>ST</AvatarFallback>
+              {avatarSrc ? <AvatarImage src={avatarSrc} alt={displayName} /> : null}
+              <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -57,8 +99,10 @@ export function SiteHeader() {
           >
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col">
-                <span className="text-sm font-medium leading-none">Saurabh</span>
-                <span className="text-xs text-muted-foreground">user@example.com</span>
+                <span className="text-sm font-medium leading-none">{displayName}</span>
+                {displayEmail ? (
+                  <span className="text-xs text-muted-foreground">{displayEmail}</span>
+                ) : null}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -70,15 +114,23 @@ export function SiteHeader() {
             <DropdownMenuItem
               className="hover:bg-[#78C151]/10 hover:text-black focus:bg-[#78C151]/20 focus:text-black"
               onSelect={() => toast(t("nav_settings_coming")) }
-            >
-              <Settings className="size-4" /> {t("nav_settings")}
+>
+              {((session?.user as any)?.role === "ADMIN") ? (
+                <Link href="/dashboard/settings" className="flex items-center gap-2">
+                  <Settings className="size-4" /> {t("nav_settings")}
+                </Link>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Settings className="size-4" /> {t("nav_settings")}
+                </div>
+              )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="hover:bg-[#78C151]/10 hover:text-black focus:bg-[#78C151]/20 focus:text-black"
-              onSelect={() => {
+              onSelect={async () => {
                 toast(t("nav_signed_out"));
-                router.push("/");
+                await signOut({ callbackUrl: "/" });
               }}
             >
               <LogOut className="size-4" /> {t("nav_logout")}

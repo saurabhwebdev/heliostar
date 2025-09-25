@@ -28,6 +28,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 
+type Option = { value: string; label: string };
+
 interface IncidentRecord {
   id: string;
   site: string;
@@ -70,23 +72,72 @@ const currencies = [
   { code: "GBP", label: "GBP (£)" },
 ];
 
+type IncidentDto = {
+  id: string;
+  site: string;
+  occurredAt: string;
+  incidentArea: string;
+  incidentCategory: string;
+  shift: string;
+  severity: string;
+  personnelType: string;
+  operationalCategory: string;
+  reporterName?: string | null;
+  reporterUsername?: string | null;
+}
+
 export default function CAPAPage() {
-  const [incidents, setIncidents] = useState<IncidentRecord[]>([]);
+  const [incidents, setIncidents] = useState<IncidentDto[]>([]);
+  const [users, setUsers] = useState<Array<{ id: string; username: string; name: string | null }>>([]);
+  const [options, setOptions] = useState<Record<string, Option[]>>({});
   const [openDate, setOpenDate] = useState(false);
 
   useEffect(() => {
-    try {
-      if (typeof window !== "undefined") {
-        const list = JSON.parse(localStorage.getItem("incidents") || "[]");
-        const normalized: IncidentRecord[] = (list || []).map((it: Partial<IncidentRecord> & { date?: string; dateISO?: string }) => ({
-          ...(it as IncidentRecord),
-          date: it.date ? new Date(it.date) : it.dateISO ? new Date(it.dateISO) : undefined,
+    (async () => {
+      try {
+        const [incRes, userRes, optRes] = await Promise.all([
+          fetch("/api/incidents?limit=50", { credentials: "include" }),
+          fetch("/api/users", { credentials: "include" }),
+          fetch(`/api/lookups?types=${encodeURIComponent([
+            "site",
+            "incidentArea",
+            "incidentCategory",
+            "shift",
+            "severity",
+            "personnelType",
+            "operationalCategory",
+            "currency",
+          ].join(","))}`, { credentials: "include" }),
+        ]);
+        const incData = await incRes.json();
+        const incidentsList: IncidentDto[] = (incData.items || []).map((it: any) => ({
+          id: it.id,
+          site: it.site,
+          occurredAt: it.occurredAt,
+          incidentArea: it.incidentArea,
+          incidentCategory: it.incidentCategory,
+          shift: it.shift,
+          severity: it.severity,
+          personnelType: it.personnelType,
+          operationalCategory: it.operationalCategory,
+          reporterName: it.reporter?.name ?? null,
+          reporterUsername: it.reporter?.username ?? null,
         }));
-        setIncidents(normalized);
+        setIncidents(incidentsList);
+        const userData = await userRes.json();
+        setUsers(userData.items || []);
+        const optData = await optRes.json();
+        const mapped: Record<string, Option[]> = {};
+        for (const key of Object.keys(optData.items || {})) {
+          mapped[key] = (optData.items[key] as any[]).map((x) => ({ value: x.value, label: x.label }));
+        }
+        setOptions(mapped);
+      } catch {
+        setIncidents([]);
+        setUsers([]);
+        setOptions({});
       }
-    } catch {
-      setIncidents([]);
-    }
+    })();
   }, []);
 
   const form = useForm<CAPAFormValues>({
@@ -112,31 +163,59 @@ export default function CAPAPage() {
   function prefillFromIncident(id: string) {
     const inc = incidents.find((x) => x.id === id);
     if (!inc) return;
+    const d = new Date(inc.occurredAt);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
     form.reset({
       incidentId: id,
       site: inc.site || "",
-      date: inc.date ? new Date(inc.date) : undefined,
-      time: inc.time || "",
+      date: d,
+      time: `${hh}:${mm}`,
       incidentArea: inc.incidentArea || "",
       incidentCategory: inc.incidentCategory || "",
       shift: inc.shift || "",
-      severidad: inc.severidad || "",
-      tipoPersonal: inc.tipoPersonal || "",
-      categoriaOperativa: inc.categoriaOperativa || "",
+      severidad: inc.severity || "",
+      tipoPersonal: inc.personnelType || "",
+      categoriaOperativa: inc.operationalCategory || "",
       assignedTo: "",
       costAmount: "",
-      costCurrency: "USD",
-      description: inc.description || "",
+      costCurrency: options.currency?.[0]?.value || "USD",
+      description: "",
       actionTaken: "",
     });
     toast("Incident data prefetched");
   }
 
-  function onSubmit(values: CAPAFormValues) {
-    void values; // mark as used for linting
-    toast("CAPA saved (ui-only demo)");
-    // Optionally: save to localStorage("capas") for demo
-    form.reset();
+  async function onSubmit(values: CAPAFormValues) {
+    if (!values.incidentId) {
+      toast("Select an incident");
+      return;
+    }
+    try {
+      const payload = {
+        incidentId: values.incidentId,
+        assignedToId: values.assignedTo || null,
+        costAmount: values.costAmount ? Number(values.costAmount) : null,
+        costCurrency: values.costCurrency || null,
+        description: values.description,
+        actionTaken: values.actionTaken,
+      };
+      const res = await fetch("/api/capa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        toast(err?.error || "Failed to save CAPA");
+        return;
+      }
+      toast("CAPA saved");
+      form.reset();
+    } catch {
+      toast("Failed to save CAPA");
+    }
   }
 
   return (
@@ -169,20 +248,29 @@ export default function CAPAPage() {
                       prefillFromIncident(v);
                     }}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full text-left whitespace-normal">
                       <SelectValue placeholder={incidents.length ? "Select incident" : "No incidents yet"} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="min-w-[520px]">
                       {incidents.length === 0 ? (
                         <SelectGroup>
                           <SelectLabel>No incidents available</SelectLabel>
                         </SelectGroup>
                       ) : (
-                        incidents.map((inc) => (
-                          <SelectItem key={inc.id} value={inc.id}>
-                            {inc.id} — {inc.site || "Site"} — {inc.date ? new Date(inc.date).toLocaleDateString() : "No date"}
-                          </SelectItem>
-                        ))
+                        incidents.map((inc) => {
+                          const dt = new Date(inc.occurredAt);
+                          const dateStr = dt.toLocaleDateString();
+                          const timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          const reporter = inc.reporterName || inc.reporterUsername || '';
+                          return (
+                            <SelectItem key={inc.id} value={inc.id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{inc.site} • {inc.incidentCategory} • {dateStr} {timeStr}</span>
+                                <span className="text-xs text-muted-foreground">Area: {inc.incidentArea} • Shift: {inc.shift} • Severity: {inc.severity}{reporter ? ` • Reporter: ${reporter}` : ''}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })
                       )}
                     </SelectContent>
                   </Select>
@@ -210,10 +298,9 @@ export default function CAPAPage() {
                             <SelectValue placeholder="Select site" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="plant-a">Plant A</SelectItem>
-                            <SelectItem value="plant-b">Plant B</SelectItem>
-                            <SelectItem value="warehouse">Warehouse</SelectItem>
-                            <SelectItem value="office">Office</SelectItem>
+                            {(options.site || []).map((o) => (
+                              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </FormControl>
@@ -286,11 +373,9 @@ export default function CAPAPage() {
                         <SelectValue placeholder="Select area" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="production">Production</SelectItem>
-                        <SelectItem value="maintenance">Maintenance</SelectItem>
-                        <SelectItem value="warehouse">Warehouse</SelectItem>
-                        <SelectItem value="office">Office</SelectItem>
-                        <SelectItem value="outdoors">Outdoors</SelectItem>
+                        {(options.incidentArea || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -312,11 +397,9 @@ export default function CAPAPage() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="near-miss">Near Miss</SelectItem>
-                        <SelectItem value="first-aid">First Aid</SelectItem>
-                        <SelectItem value="medical">Medical Treatment</SelectItem>
-                        <SelectItem value="lost-time">Lost Time</SelectItem>
-                        <SelectItem value="property">Property Damage</SelectItem>
+                        {(options.incidentCategory || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -338,9 +421,9 @@ export default function CAPAPage() {
                         <SelectValue placeholder="Select shift" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="morning">Morning</SelectItem>
-                        <SelectItem value="afternoon">Afternoon</SelectItem>
-                        <SelectItem value="night">Night</SelectItem>
+                        {(options.shift || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -365,10 +448,9 @@ export default function CAPAPage() {
                         <SelectValue placeholder="Select severity" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Baja</SelectItem>
-                        <SelectItem value="medium">Media</SelectItem>
-                        <SelectItem value="high">Alta</SelectItem>
-                        <SelectItem value="critical">Crítica</SelectItem>
+                        {(options.severity || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -390,9 +472,9 @@ export default function CAPAPage() {
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="empleado">Empleado</SelectItem>
-                        <SelectItem value="contratista">Contratista</SelectItem>
-                        <SelectItem value="visitante">Visitante</SelectItem>
+                        {(options.personnelType || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -414,12 +496,9 @@ export default function CAPAPage() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="mechanical">Mecánica</SelectItem>
-                        <SelectItem value="electrical">Eléctrica</SelectItem>
-                        <SelectItem value="chemical">Química</SelectItem>
-                        <SelectItem value="ergonomic">Ergonómica</SelectItem>
-                        <SelectItem value="safety">Seguridad</SelectItem>
-                        <SelectItem value="environmental">Ambiental</SelectItem>
+                        {(options.operationalCategory || []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -439,7 +518,16 @@ export default function CAPAPage() {
                 <FormItem>
                   <FormLabel>Assigned To</FormLabel>
                   <FormControl>
-                    <Input placeholder="Name or team" value={field.value} onChange={field.onChange} />
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select assignee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map(u => (
+                          <SelectItem key={u.id} value={u.id}>{u.name || u.username}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -473,8 +561,8 @@ export default function CAPAPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {currencies.map((c) => (
-                          <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                        {(options.currency || []).map((c) => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

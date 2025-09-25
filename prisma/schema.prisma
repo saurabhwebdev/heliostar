@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  // Custom fields
+  username     String    @unique
+  passwordHash String
+  role         String    @default("USER")
+
+  // Relations for NextAuth
+  accounts Account[]
+  sessions Session[]
+
+  // Relations
+  incidents Incident[]
+  capasAssigned Capa[]    @relation("UserAssignedCapas")
+  routeAccesses RouteAccess[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.NVarChar(2048)
+  access_token      String? @db.NVarChar(2048)
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.NVarChar(2048)
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Incident {
+  id                  String   @id @default(cuid())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  reporterId          String
+  reporter            User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  site                String
+  occurredAt          DateTime
+  incidentArea        String
+  incidentCategory    String
+  shift               String
+  severity            String
+  personnelType       String
+  injuryArea          String
+  operationalCategory String
+  description         String
+  riskScore           Int?
+
+  capas Capa[]
+}
+
+model LookupItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  type   String
+  value  String
+  label  String
+  order  Int?
+  active Boolean  @default(true)
+
+  @@unique([type, value])
+  @@index([type])
+}
+
+model Capa {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  incidentId    String
+  incident      Incident  @relation(fields: [incidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  assignedToId  String?
+  assignedTo    User?     @relation("UserAssignedCapas", fields: [assignedToId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  // Snapshot fields (redundant but useful for report)
+  site                String
+  occurredAt          DateTime
+  incidentArea        String
+  incidentCategory    String
+  shift               String
+  severity            String
+  personnelType       String
+  operationalCategory String
+
+  description   String
+  actionTaken   String
+
+  costAmount    Float?
+  costCurrency  String?
+}
+
+model RouteAccess {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  path     String
+  isPrefix Boolean  @default(true)
+
+  @@index([userId])
+  @@unique([userId, path])
+}
+

@@ -5,9 +5,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
+import { signIn } from "next-auth/react";
 
 export default function Home() {
   const [src, setSrc] = useState("/images/pexels-pixabay-60008.jpg");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const fd = new FormData(e.currentTarget);
+      const username = String(fd.get("email") || "");
+      const password = String(fd.get("password") || "");
+      await signIn("credentials", {
+        username,
+        password,
+        redirect: true,
+        callbackUrl: "/dashboard",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="min-h-screen md:h-screen grid md:grid-cols-2">
       {/* Image panel */}
@@ -36,16 +58,16 @@ export default function Home() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="grid gap-4">
+            <form className="grid gap-4" onSubmit={onSubmit}>
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="you@example.com" required />
+                <Label htmlFor="email">Email or Username</Label>
+                <Input id="email" name="email" type="text" placeholder="admin or user" required />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required />
+                <Input id="password" name="password" type="password" required />
               </div>
-              <Button type="submit" className="w-full">Sign in</Button>
+              <Button type="submit" className="w-full" disabled={submitting}>{submitting ? "Signing in..." : "Sign in"}</Button>
             </form>
           </CardContent>
         </Card>
