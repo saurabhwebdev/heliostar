@@ -30,20 +30,6 @@ import { Calendar as CalendarIcon } from "lucide-react";
 
 type Option = { value: string; label: string };
 
-  id: string;
-  site: string;
-  date?: Date;
-  dateISO?: string;
-  time: string;
-  incidentArea: string;
-  incidentCategory: string;
-  shift: string;
-  severidad: string;
-  tipoPersonal: string;
-  injuryArea: string;
-  categoriaOperativa: string;
-  description: string;
-}
 
 interface CAPAFormValues {
   incidentId: string;
@@ -63,12 +49,6 @@ interface CAPAFormValues {
   actionTaken: string;
 }
 
-  { code: "USD", label: "USD ($)" },
-  { code: "EUR", label: "EUR (€)" },
-  { code: "MXN", label: "MXN ($)" },
-  { code: "INR", label: "INR (₹)" },
-  { code: "GBP", label: "GBP (£)" },
-];
 
 type IncidentDto = {
   id: string;
