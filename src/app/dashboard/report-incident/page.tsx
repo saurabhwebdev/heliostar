@@ -192,7 +192,7 @@ export default function ReportIncidentPage() {
       form.reset();
       setLikelihood(""); setResult(""); setExposure("");
       await loadIncidents();
-    } catch (e) {
+    } catch {
       toast("Failed to save incident");
     } finally {
       setSubmitting(false);

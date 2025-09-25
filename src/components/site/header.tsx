@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -114,7 +114,7 @@ export function SiteHeader() {
               className="hover:bg-[#78C151]/10 hover:text-black focus:bg-[#78C151]/20 focus:text-black"
               onSelect={() => toast(t("nav_settings_coming")) }
 >
-              {((session?.user as any)?.role === "ADMIN") ? (
+              {(((session?.user as { role?: string })?.role) === "ADMIN") ? (
                 <Link href="/dashboard/settings" className="flex items-center gap-2">
                   <Settings className="size-4" /> {t("nav_settings")}
                 </Link>

@@ -46,7 +46,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (status === "loading") return;
-    if (!session?.user || (session.user as any).role !== "ADMIN") {
+    type SessionUser = { role?: string };
+    if (!session?.user || (session.user as SessionUser).role !== "ADMIN") {
       toast("Admins only");
       router.push("/dashboard");
       return;
@@ -243,7 +244,11 @@ function UserRowTr({ user, onChanged }: { user: UserLite; onChanged: () => Promi
     try {
       await toast.promise(
         (async () => {
-          const payload: any = { name: name || null, email: email || null, role };
+          const payload: { name: string | null; email: string | null; role: string; password?: string } = {
+            name: name || null,
+            email: email || null,
+            role,
+          };
           if (password) payload.password = password;
           const res = await fetch(`/api/admin/users/${user.id}`, {
             method: 'PATCH',

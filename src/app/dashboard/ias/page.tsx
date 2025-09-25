@@ -66,29 +66,29 @@ export default function IASPage() {
   const [likelihood, setLikelihood] = useState("");
   const [result, setResult] = useState("");
   const [exposure, setExposure] = useState("");
-  const likelihoodScore: Record<string, number> = {
+  const likelihoodScore = useMemo<Record<string, number>>(() => ({
     unlikely: 1,
     possible: 2,
     likely: 3,
     "very-likely": 4,
     "almost-certain": 5,
-  };
-  const resultScore: Record<string, number> = {
+  }), []);
+  const resultScore = useMemo<Record<string, number>>(() => ({
     "first-aid": 1,
     "medical-treatment": 2,
     "serious-lti": 3,
     disability: 4,
     fatality: 5,
     "multiple-fatalities": 6,
-  };
-  const exposureScore: Record<string, number> = {
+  }), []);
+  const exposureScore = useMemo<Record<string, number>>(() => ({
     "hasnt-happened": 1,
     rarely: 2,
     sometimes: 3,
     often: 4,
     "very-often": 5,
     constant: 6,
-  };
+  }), []);
   const riskScore = useMemo(() => {
     const l = likelihoodScore[likelihood] ?? 0;
     const r = resultScore[result] ?? 0;
